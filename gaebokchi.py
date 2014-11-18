@@ -21,6 +21,24 @@ PATCH_LIST = ['hybridtv-atsc_m14tv.bb', 'hybridtv-atsc_h15.bb', 'hybridtv-atsc_l
               'hybridtv-dvb_m14tv.bb', 'hybridtv-dvb_h15.bb', 'hybridtv-dvb_lm15u.bb',
               'hybridtv-arib_m14tv.bb', 'hybridtv-arib_h15.bb', 'hybridtv-arib_lm15u.bb']
 
+COMMIT_MSG = """hybridtv={submission}
+
+:Release Notes:
+Hybridtv includes HbbTV,MHP,MHEG,GINGA,OHTV,BML,HybridCast
+// TODO: Add release note
+
+:Detailed Notes:
+submissions/{pre-submission}..submissions/{submission}
+{detail_notes}
+
+:Testing Performed:
+MiniBAT: see // TODO
+
+:Issues Addressed:
+[BHV-17627] CCC: hybridtv=34
+// TODO: Add issue links
+"""
+
 def RemoveStarfishDir():
   if os.path.exists(STARFISH_TOP_DIR):
     print '# Remove Old directory %s,' % STARFISH_TOP_DIR
@@ -43,10 +61,11 @@ def GetSubmisison():
   os.chdir(HYBRIDTV_DIR)
   file = open('hybridtv_git_log.txt', 'rw')
   content = file.readline()
-  submission = content[content.index('/') + 1:content.index(')')]
+  start = content.find('/') + 1
+  submission = content[start:content.find(',', start)]
   if submission.isdigit():
     return submission
-  print "WRONG SUBMISSION---------"
+  print "WRONG SUBMISSION---------" + submission
   sys.exit(0)
 
 def DownloadCheckSum(serverip):
@@ -130,10 +149,21 @@ def DrawLogo():
 def ReceiveSettings():
   print "--"
 
+def Commit():
+  os.chdir(HYBRIDTV_DIR)
+  msg = COMMIT_MSG.replace('{submission}', GetSubmisison())
+  msg = msg.replace('{detail_notes}', GetSubmisison())
+#  file = open('hybridtv_git_log.txt', 'rw')
+#  content = file.readline()
+  file = open('COMMIT_MSG', 'w+')
+  file.write(msg)
+  file.close()
+
 def TearDown():
   os.chdir(HYBRIDTV_DIR)
   for bb_file in PATCH_LIST:
     os.remove(GetCheckSumfileFromBbFile(bb_file))
+  os.remove('hybridtv_git_log.txt')
 
 def main(argv):
   DrawLogo()
@@ -141,6 +171,7 @@ def main(argv):
   CloneStarfish('@beehive4tv')
   DownloadCheckSum(SERVER_IP)
   Patch()
+  Commit()
   TearDown()
 
 if __name__ == '__main__':
