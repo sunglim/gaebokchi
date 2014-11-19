@@ -8,10 +8,11 @@ import sys
 import time
 import optparse
 import getpass
+import urllib2
 
 # where tar.gz exist
-SERVER_IP = '156.147.61.24'
-ACCOUNT_WHOAMI = 'sungguk.lim'
+SERVER_IP = '156.147.61.35'
+ACCOUNT_WHOAMI = getpass.getuser()
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 STARFISH_TOP_DIR = os.path.join(CURRENT_DIR, 'ccc_magic')
@@ -58,25 +59,41 @@ def CloneStarfish(branch_name):
   Popen(['./mcf', '-b', '16', '-p', '16', 'm14tv', '--premirror=file:///starfish/downloads'], stdout = PIPE).communicate()
 
 def GetSubmisison():
-  os.chdir(HYBRIDTV_DIR)
-  file = open('hybridtv_git_log.txt', 'rw')
-  content = file.readline()
-  start = content.find('/') + 1
-  submission = content[start:content.find(',', start)]
-  if submission.isdigit():
-    return submission
-  print "WRONG SUBMISSION---------" + submission
-  sys.exit(0)
+  html = urllib2.urlopen("http://webos.lge.com/binary/starfish-beehive/lm15u/official/hybridtv-dvb/").read()
+  START_TAG = '<a href="hybridtv-dvb-lm15u-tc1-1.0.0-'
+  start = html.rfind('<a href="hybridtv-dvb-lm15u-tc1-1.0.0-') + len(START_TAG)
+  end = html.find('.tar.bz2', start)
+  GetSubmisison.get = html[start:end]
+
+GetSubmisison.get = ''
 
 def DownloadCheckSum(serverip):
   os.chdir(HYBRIDTV_DIR)
-  Popen(['wget', 'ftp://%s/lg1311/%s/hybridtv_git_log.txt' % (serverip, ACCOUNT_WHOAMI)], stdout = PIPE).communicate()
-  submission = GetSubmisison()
+  submission = GetSubmisison.get
   Popen(['wget', 'ftp://%s/lg1311/%s/hybridtv*%s-checksum.txt' % (serverip, ACCOUNT_WHOAMI, submission)], stdout = PIPE).communicate()
   Popen(['wget', 'ftp://%s/lg1210/%s/hybridtv*%s-checksum.txt' % (serverip, ACCOUNT_WHOAMI, submission)], stdout = PIPE).communicate()
   Popen(['wget', 'ftp://%s/lm15u/%s/hybridtv*%s-checksum.txt' % (serverip, ACCOUNT_WHOAMI, submission)], stdout = PIPE).communicate()
 
-def ReplaceKey(bb_file, checksum_file):
+def getTvbinUrlFromBb(bb_file, submission):
+  url = 'http://tvbin.lge.com:8080/p/hybridtv-{type}/starfish-beehive/{chip}/1.0.0-{submission}/tc1/detail/'
+  # unhappy this code. find better way
+  if 'atsc' in bb_file:
+    url = url.replace('{type}', 'atsc')
+  elif 'dvb' in bb_file:
+    url = url.replace('{type}', 'dvb')
+  elif 'arib' in bb_file:
+    url = url.replace('{type}', 'arib')
+
+  if 'm14tv' in bb_file:
+    url = url.replace('{chip}', 'm14tv')
+  elif 'lm15u' in bb_file:
+    url = url.replace('{chip}', 'lm15u')
+  elif 'h15' in bb_file:
+    url = url.replace('{chip}', 'h15')
+  url = url.replace('{submission}', submission)
+  return url
+
+def ReplaceKeyFromWeb(bb_file, submission):
   os.chdir(HYBRIDTV_DIR)
   MD5SUM_START = 'SRC_URI[md5sum] = "'
   SHA256SUM_START = 'SRC_URI[sha256sum] = "'
@@ -91,19 +108,20 @@ def ReplaceKey(bb_file, checksum_file):
   end = content.find('\n', start) - 1
   old_sha256sum = content[start:end]
   
-  checksum = open(checksum_file, 'r')
-  checksum_content = checksum.read()
-  CHECKSUM_MD5SUM_START = "[md5sum]\n"
-  CHECKSUM_SHA256SUM_START = "[sha256sum]\n"
-  checksum_start = checksum_content.find(CHECKSUM_MD5SUM_START) + len(CHECKSUM_MD5SUM_START)
-  checksum_end = checksum_content.find(' ', checksum_start)
+  checksum_content = urllib2.urlopen(getTvbinUrlFromBb(bb_file, submission)).read()
+  START_MD5_TAG = 'Md5sum: '
+  START_SHA256_TAG = 'Sha256sum: '
+  END_TAG = '</li>'
+
+  checksum_start = checksum_content.find(START_MD5_TAG) + len(START_MD5_TAG)
+  checksum_end = checksum_content.find(END_TAG, checksum_start)
   new_md5sum = checksum_content[checksum_start:checksum_end]
 
-  checksum_start = checksum_content.find(CHECKSUM_SHA256SUM_START) + len(CHECKSUM_SHA256SUM_START)
-  checksum_end = checksum_content.find(' ', checksum_start)
+  checksum_start = checksum_content.find(START_SHA256_TAG) + len(START_SHA256_TAG)
+  checksum_end = checksum_content.find(END_TAG, checksum_start)
   new_sha256sum = checksum_content[checksum_start:checksum_end]
 
-  print "          " + bb_file + " : " + checksum_file
+  print "\n        " + bb_file + " : " + getTvbinUrlFromBb(bb_file, submission) 
   print "OLD KEY : " + old_md5sum + " : " + old_sha256sum
   print "NEW KEY : " + new_md5sum + " : " + new_sha256sum
 
@@ -123,56 +141,43 @@ def IncreaseInc():
   start = content.find(INC_START) + len(INC_START)
   end = content.find(INC_END, start)
   oldsumission = content[start:end]
-  content = content.replace(oldsumission, GetSubmisison())
+  content = content.replace(oldsumission, GetSubmisison.get)
   file = open('hybridtv.inc', 'rw+')
   file.write(content)
   file.close()
-  print "Increase submission to " + GetSubmisison()
-
-def GetCheckSumfileFromBbFile(bbfile):
-  foo = bbfile.replace('_', '-')
-  foo = foo.replace('.bb', '')
-  foo = foo + '-1.0.0-' + GetSubmisison() + '-checksum.txt'
-  return foo
+  print "Increase submission to " + GetSubmisison.get
 
 def Patch():
   for bb_file in PATCH_LIST:
-    ReplaceKey(bb_file, GetCheckSumfileFromBbFile(bb_file))
+    ReplaceKeyFromWeb(bb_file, GetSubmisison.get)
   IncreaseInc()
 
 def DrawLogo():
+  """ Draw Logo and set env """
   print "-----------------------------------------------"
   print " Gae Bok Chi, with a focusing on automation.\n"
   print "                         v0.0.1   < ')+++<"
   print "-----------------------------------------------"
-
-def ReceiveSettings():
-  print "--"
+  GetSubmisison()
 
 def Commit():
   os.chdir(HYBRIDTV_DIR)
-  msg = COMMIT_MSG.replace('{submission}', GetSubmisison())
-  msg = msg.replace('{detail_notes}', GetSubmisison())
-#  file = open('hybridtv_git_log.txt', 'rw')
-#  content = file.readline()
+  msg = COMMIT_MSG.replace('{submission}', GetSubmisison.get)
+  msg = msg.replace('{detail_notes}', GetSubmisison.get)
   file = open('COMMIT_MSG', 'w+')
   file.write(msg)
   file.close()
-
-def TearDown():
-  os.chdir(HYBRIDTV_DIR)
-  for bb_file in PATCH_LIST:
-    os.remove(GetCheckSumfileFromBbFile(bb_file))
-  os.remove('hybridtv_git_log.txt')
 
 def main(argv):
   DrawLogo()
   RemoveStarfishDir()
   CloneStarfish('@beehive4tv')
-  DownloadCheckSum(SERVER_IP)
   Patch()
   Commit()
-  TearDown()
+
+  print '\n>> cd ccc_magic/meta-lg-webos/meta-starfish/recipes-binaries/hybridtv/'
+  print '>> git commit -a'
+  print '>> git push origin HEAD:refs/for/@beehive4tv'
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv))
