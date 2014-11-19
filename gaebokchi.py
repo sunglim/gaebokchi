@@ -16,11 +16,155 @@ ACCOUNT_WHOAMI = getpass.getuser()
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 STARFISH_TOP_DIR = os.path.join(CURRENT_DIR, 'ccc_magic')
+HOOK_DIR = os.path.join(STARFISH_TOP_DIR, 'meta-lg-webos', '.git', 'hooks')
 HYBRIDTV_DIR = os.path.join(STARFISH_TOP_DIR, 'meta-lg-webos', 'meta-starfish', 'recipes-binaries', 'hybridtv')
 
 PATCH_LIST = ['hybridtv-atsc_m14tv.bb', 'hybridtv-atsc_h15.bb', 'hybridtv-atsc_lm15u.bb',
               'hybridtv-dvb_m14tv.bb', 'hybridtv-dvb_h15.bb', 'hybridtv-dvb_lm15u.bb',
               'hybridtv-arib_m14tv.bb', 'hybridtv-arib_h15.bb', 'hybridtv-arib_lm15u.bb']
+
+HOOK_SCRIPT ='''
+#!/bin/sh
+unset GREP_OPTIONS
+
+CHANGE_ID_AFTER="Bug|Issue"
+MSG="$1"
+
+# Check for, and add if missing, a unique Change-Id
+#
+add_ChangeId() {
+	clean_message=`sed -e '
+		/^diff --git .*/{
+			s///
+			q
+		}
+		/^Signed-off-by:/d
+		/^#/d
+	' "$MSG" | git stripspace`
+	if test -z "$clean_message"
+	then
+		return
+	fi
+
+	if test "false" = "`git config --bool --get gerrit.createChangeId`"
+	then
+		return
+	fi
+
+	# Does Change-Id: already exist? if so, exit (no change).
+	if grep -i '^Change-Id:' "$MSG" >/dev/null
+	then
+		return
+	fi
+
+	id=`_gen_ChangeId`
+	T="$MSG.tmp.$$"
+	AWK=awk
+	if [ -x /usr/xpg4/bin/awk ]; then
+		# Solaris AWK is just too broken
+		AWK=/usr/xpg4/bin/awk
+	fi
+	$AWK '
+	BEGIN {
+		# while we start with the assumption that textLine+
+		# is a footer, the first block is not.
+		isFooter = 0
+		footerComment = 0
+		blankLines = 0
+	}
+
+	# Skip lines starting with "#" without any spaces before it.
+	/^#/ { next }
+
+	/^diff --git / {
+		blankLines = 0
+		while (getline) { }
+		next
+	}
+
+	# Count blank lines outside footer comments
+	/^$/ && (footerComment == 0) {
+		blankLines++
+		next
+	}
+
+	# Catch footer comment
+	/^\[[a-zA-Z0-9-]+:/ && (isFooter == 1) {
+		footerComment = 1
+	}
+
+	/]$/ && (footerComment == 1) {
+		footerComment = 2
+	}
+
+	# We have a non-blank line after blank lines. Handle this.
+	(blankLines > 0) {
+		print lines
+		for (i = 0; i < blankLines; i++) {
+			print ""
+		}
+
+		lines = ""
+		blankLines = 0
+		isFooter = 1
+		footerComment = 0
+	}
+
+	# Detect that the current block is not the footer
+	(footerComment == 0) && (!/^\[?[a-zA-Z0-9-]+:/ || /^[a-zA-Z0-9-]+:\/\//) {
+		isFooter = 0
+	}
+
+	{
+		# We need this information about the current last comment line
+		if (footerComment == 2) {
+			footerComment = 0
+		}
+		if (lines != "") {
+			lines = lines "\\n";
+		}
+		lines = lines $0
+	}
+
+	END {
+		unprinted = 1
+		if (isFooter == 0) {
+			print lines "\\n"
+			lines = ""
+		}
+		changeIdAfter = "^(" tolower("'"$CHANGE_ID_AFTER"'") "):"
+		numlines = split(lines, footer, "\\n")
+		for (line = 1; line <= numlines; line++) {
+			if (unprinted && match(tolower(footer[line]), changeIdAfter) != 1) {
+				unprinted = 0
+				print "Change-Id: I'"$id"'"
+			}
+			print footer[line]
+		}
+		if (unprinted) {
+			print "Change-Id: I'"$id"'"
+		}
+	}' "$MSG" > "$T" && mv "$T" "$MSG" || rm -f "$T"
+}
+_gen_ChangeIdInput() {
+	echo "tree `git write-tree`"
+	if parent=`git rev-parse "HEAD^0" 2>/dev/null`
+	then
+		echo "parent $parent"
+	fi
+	echo "author `git var GIT_AUTHOR_IDENT`"
+	echo "committer `git var GIT_COMMITTER_IDENT`"
+	echo
+	printf '%s' "$clean_message"
+}
+_gen_ChangeId() {
+	_gen_ChangeIdInput |
+	git hash-object -t commit --stdin
+}
+
+
+add_ChangeId
+'''
 
 COMMIT_MSG = """hybridtv={submission}
 
@@ -38,6 +182,8 @@ MiniBAT: see // TODO
 :Issues Addressed:
 [BHV-17627] CCC: hybridtv=34
 // TODO: Add issue links
+
+{signed-off-by}
 """
 
 def RemoveStarfishDir():
@@ -161,12 +307,21 @@ def DrawLogo():
   GetSubmisison()
 
 def Commit():
+  os.chdir(HOOK_DIR)
+  file = open('commit-msg', 'wt')
+  os.chmod('commit-msg', 0755)
+  file.write(HOOK_SCRIPT)
+  file.close()
+
   os.chdir(HYBRIDTV_DIR)
   msg = COMMIT_MSG.replace('{submission}', GetSubmisison.get)
   msg = msg.replace('{detail_notes}', GetSubmisison.get)
+  msg = msg.replace('{signed-off-by}', 'Signed-off-by: ' + ACCOUNT_WHOAMI + ' <' + ACCOUNT_WHOAMI + '@lge.com>')
   file = open('COMMIT_MSG', 'w+')
   file.write(msg)
   file.close()
+  Popen(['git', 'commit', '-aF', 'COMMIT_MSG'], stdout = PIPE).communicate()
+  Popen(['git', 'push', 'origin', 'HEAD:refs/for/@beehive4tv'], stdout = PIPE).communicate()
 
 def main(argv):
   DrawLogo()
@@ -174,10 +329,6 @@ def main(argv):
   CloneStarfish('@beehive4tv')
   Patch()
   Commit()
-
-  print '\n>> cd ccc_magic/meta-lg-webos/meta-starfish/recipes-binaries/hybridtv/'
-  print '>> git commit -a'
-  print '>> git push origin HEAD:refs/for/@beehive4tv'
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv))
