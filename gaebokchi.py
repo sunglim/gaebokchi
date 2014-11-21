@@ -1,29 +1,28 @@
 #!/usr/bin/env python
 
-import json
-import os, sys, stat
+import os, sys
 import shutil
 from subprocess import PIPE, Popen
 import sys
-import time
-import optparse
 import getpass
 import urllib2
 
 # where tar.gz exist
-SERVER_IP = '156.147.61.35'
 ACCOUNT_WHOAMI = getpass.getuser()
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 STARFISH_TOP_DIR = os.path.join(CURRENT_DIR, 'ccc_magic')
 HOOK_DIR = os.path.join(STARFISH_TOP_DIR, 'meta-lg-webos', '.git', 'hooks')
-HYBRIDTV_DIR = os.path.join(STARFISH_TOP_DIR, 'meta-lg-webos', 'meta-starfish', 'recipes-binaries', 'hybridtv')
+HYBRIDTV_DIR = os.path.join(STARFISH_TOP_DIR, 'meta-lg-webos', 'meta-starfish',
+                            'recipes-binaries', 'hybridtv')
 
-PATCH_LIST = ['hybridtv-atsc_m14tv.bb', 'hybridtv-atsc_h15.bb', 'hybridtv-atsc_lm15u.bb',
-              'hybridtv-dvb_m14tv.bb', 'hybridtv-dvb_h15.bb', 'hybridtv-dvb_lm15u.bb',
-              'hybridtv-arib_m14tv.bb', 'hybridtv-arib_h15.bb', 'hybridtv-arib_lm15u.bb']
+PATCH_LIST = ['hybridtv-atsc_m14tv.bb', 'hybridtv-atsc_h15.bb',
+              'hybridtv-atsc_lm15u.bb', 'hybridtv-dvb_m14tv.bb',
+              'hybridtv-dvb_h15.bb', 'hybridtv-dvb_lm15u.bb',
+              'hybridtv-arib_m14tv.bb', 'hybridtv-arib_h15.bb',
+              'hybridtv-arib_lm15u.bb']
 
-HOOK_SCRIPT ='''
+HOOK_SCRIPT = '''
 #!/bin/sh
 unset GREP_OPTIONS
 
@@ -179,6 +178,8 @@ submissions/{pre-submission}..submissions/{submission}
 :Testing Performed:
 MiniBAT: see // TODO
 
+:Issue Notes:
+
 :Issues Addressed:
 [BHV-17627] CCC: hybridtv=34
 // TODO: Add issue links
@@ -193,7 +194,7 @@ def RemoveStarfishDir():
 
 def CloneStarfish(branch_name):
   """
-  Get lastest starfish, and checkout inserted branch, and run MCF command.
+  Git clone starfish. and checkout |branch_name|, and run MCF command.
   """
   print "## Clone Starfish"
   os.chdir(CURRENT_DIR)
@@ -240,6 +241,7 @@ def getTvbinUrlFromBb(bb_file, submission):
   return url
 
 def ReplaceKeyFromWeb(bb_file, submission):
+  """ Get hash key from tvbin site and patch """
   os.chdir(HYBRIDTV_DIR)
   MD5SUM_START = 'SRC_URI[md5sum] = "'
   SHA256SUM_START = 'SRC_URI[sha256sum] = "'
@@ -299,23 +301,27 @@ def Patch():
   IncreaseInc()
 
 def DrawLogo():
-  """ Draw Logo and set env """
+  """ Draw Logo and load env """
   print "-----------------------------------------------"
-  print " Gae Bok Chi, with a focusing on automation.\n"
+  print " Gae Bok Chi, with a focusing 2n automation.\n"
   print "                         v0.0.1   < ')+++<"
   print "-----------------------------------------------"
   GetSubmisison()
 
 def Commit():
+  """ Git commit and push to Gerrit """
+
+  # commit-msg file is necessary to automatically insert Change-Id.
   os.chdir(HOOK_DIR)
-  file = open('commit-msg', 'wt')
+  msg_fd = open('commit-msg', 'wt')
   os.chmod('commit-msg', 0755)
-  file.write(HOOK_SCRIPT)
-  file.close()
+  msg_fd.write(HOOK_SCRIPT)
+  msg_fd.close()
 
   os.chdir(HYBRIDTV_DIR)
   msg = COMMIT_MSG.replace('{submission}', GetSubmisison.get)
-  msg = msg.replace('{detail_notes}', GetSubmisison.get)
+
+  # Signed-off-by: filed is necessary. to automatically make Change-Id.
   msg = msg.replace('{signed-off-by}', 'Signed-off-by: ' + ACCOUNT_WHOAMI + ' <' + ACCOUNT_WHOAMI + '@lge.com>')
   file = open('COMMIT_MSG', 'w+')
   file.write(msg)
@@ -323,7 +329,7 @@ def Commit():
   Popen(['git', 'commit', '-aF', 'COMMIT_MSG'], stdout = PIPE).communicate()
   Popen(['git', 'push', 'origin', 'HEAD:refs/for/@beehive4tv'], stdout = PIPE).communicate()
 
-def main(argv):
+def main():
   DrawLogo()
   RemoveStarfishDir()
   CloneStarfish('@beehive4tv')
@@ -331,4 +337,4 @@ def main(argv):
   Commit()
 
 if __name__ == '__main__':
-  sys.exit(main(sys.argv))
+  sys.exit(main())
