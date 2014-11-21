@@ -7,10 +7,9 @@ import sys
 import getpass
 import urllib2
 
-# where tar.gz exist
 ACCOUNT_WHOAMI = getpass.getuser()
 
-CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(___fd__)))
 STARFISH_TOP_DIR = os.path.join(CURRENT_DIR, 'ccc_magic')
 HOOK_DIR = os.path.join(STARFISH_TOP_DIR, 'meta-lg-webos', '.git', 'hooks')
 HYBRIDTV_DIR = os.path.join(STARFISH_TOP_DIR, 'meta-lg-webos', 'meta-starfish',
@@ -178,10 +177,10 @@ submissions/{pre-submission}..submissions/{submission}
 :Testing Performed:
 MiniBAT: see // TODO
 
-:Issue Notes:
+:QA Notes:
 
 :Issues Addressed:
-[BHV-17627] CCC: hybridtv=34
+[BHV-????] CCC: hybridtv=
 // TODO: Add issue links
 
 {signed-off-by}
@@ -203,7 +202,7 @@ def CloneStarfish(branch_name):
   os.chdir(STARFISH_TOP_DIR)
   print "run checkout"
   Popen(['git', 'checkout', branch_name], stdout = PIPE).communicate()
-  Popen(['./mcf', '-b', '16', '-p', '16', 'm14tv', '--premirror=file:///starfish/downloads'], stdout = PIPE).communicate()
+  Popen(['./mcf', '-b', '16', '-p', '16', 'm14tv', '--premirror=_fd:///starfish/downloads'], stdout = PIPE).communicate()
 
 def GetSubmisison():
   html = urllib2.urlopen("http://webos.lge.com/binary/starfish-beehive/lm15u/official/hybridtv-dvb/").read()
@@ -214,33 +213,33 @@ def GetSubmisison():
 
 GetSubmisison.get = ''
 
-def getTvbinUrlFromBb(bb_file, submission):
+def getTvbinUrlFromBb(bb__fd, submission):
   url = 'http://tvbin.lge.com:8080/p/hybridtv-{type}/starfish-beehive/{chip}/1.0.0-{submission}/tc1/detail/'
   # unhappy this code. find better way
-  if 'atsc' in bb_file:
+  if 'atsc' in bb__fd:
     url = url.replace('{type}', 'atsc')
-  elif 'dvb' in bb_file:
+  elif 'dvb' in bb__fd:
     url = url.replace('{type}', 'dvb')
-  elif 'arib' in bb_file:
+  elif 'arib' in bb__fd:
     url = url.replace('{type}', 'arib')
 
-  if 'm14tv' in bb_file:
+  if 'm14tv' in bb__fd:
     url = url.replace('{chip}', 'm14tv')
-  elif 'lm15u' in bb_file:
+  elif 'lm15u' in bb__fd:
     url = url.replace('{chip}', 'lm15u')
-  elif 'h15' in bb_file:
+  elif 'h15' in bb__fd:
     url = url.replace('{chip}', 'h15')
   url = url.replace('{submission}', submission)
   return url
 
-def ReplaceKeyFromWeb(bb_file, submission):
+def ReplaceKeyFromWeb(bb__fd, submission):
   """ Get hash key from tvbin site and patch """
   os.chdir(HYBRIDTV_DIR)
   MD5SUM_START = 'SRC_URI[md5sum] = "'
   SHA256SUM_START = 'SRC_URI[sha256sum] = "'
-  file = open(bb_file, 'rw')
-  content = file.read()
-  file.close()
+  _fd = open(bb__fd, 'rw')
+  content = _fd.read()
+  _fd.close()
   start = content.find(MD5SUM_START) + len(MD5SUM_START)
   end = content.find('\n', start) - 1
   old_md5sum = content[start:end]
@@ -249,48 +248,48 @@ def ReplaceKeyFromWeb(bb_file, submission):
   end = content.find('\n', start) - 1
   old_sha256sum = content[start:end]
   
-  checksum_content = urllib2.urlopen(getTvbinUrlFromBb(bb_file, submission)).read()
+  tvbin_content = urllib2.urlopen(getTvbinUrlFromBb(bb__fd, submission)).read()
   START_MD5_TAG = 'Md5sum: '
   START_SHA256_TAG = 'Sha256sum: '
   END_TAG = '</li>'
 
-  checksum_start = checksum_content.find(START_MD5_TAG) + len(START_MD5_TAG)
-  checksum_end = checksum_content.find(END_TAG, checksum_start)
-  new_md5sum = checksum_content[checksum_start:checksum_end]
+  start = tvbin_content.find(START_MD5_TAG) + len(START_MD5_TAG)
+  end = tvbin_content.find(END_TAG, start)
+  new_md5sum = tvbin_content[start:end]
 
-  checksum_start = checksum_content.find(START_SHA256_TAG) + len(START_SHA256_TAG)
-  checksum_end = checksum_content.find(END_TAG, checksum_start)
-  new_sha256sum = checksum_content[checksum_start:checksum_end]
+  start = tvbin_content.find(START_SHA256_TAG) + len(START_SHA256_TAG)
+  end = tvbin_content.find(END_TAG, start)
+  new_sha256sum = tvbin_content[start:end]
 
-  print "\n        " + bb_file + " : " + getTvbinUrlFromBb(bb_file, submission) 
+  print "\n        " + bb__fd + " : " + getTvbinUrlFromBb(bb__fd, submission)
   print "OLD KEY : " + old_md5sum + " : " + old_sha256sum
   print "NEW KEY : " + new_md5sum + " : " + new_sha256sum
 
-  file = open(bb_file, 'rw+')
+  _fd = open(bb__fd, 'rw+')
   content = content.replace(old_md5sum, new_md5sum)
   content = content.replace(old_sha256sum, new_sha256sum)
-  file.write(content)
-  file.close()
+  _fd.write(content)
+  _fd.close()
 
 def IncreaseInc():
   os.chdir(HYBRIDTV_DIR)
   INC_START = 'WEBOS_VERSION = "1.0.0-'
   INC_END = '"'
-  file = open('hybridtv.inc', 'r')
-  content = file.read()
-  file.close()
+  _fd = open('hybridtv.inc', 'r')
+  content = _fd.read()
+  _fd.close()
   start = content.find(INC_START) + len(INC_START)
   end = content.find(INC_END, start)
   oldsumission = content[start:end]
   content = content.replace(oldsumission, GetSubmisison.get)
-  file = open('hybridtv.inc', 'rw+')
-  file.write(content)
-  file.close()
+  _fd = open('hybridtv.inc', 'rw+')
+  _fd.write(content)
+  _fd.close()
   print "Increase submission to " + GetSubmisison.get
 
 def Patch():
-  for bb_file in PATCH_LIST:
-    ReplaceKeyFromWeb(bb_file, GetSubmisison.get)
+  for bb__fd in PATCH_LIST:
+    ReplaceKeyFromWeb(bb__fd, GetSubmisison.get)
   IncreaseInc()
 
 def DrawLogo():
@@ -304,7 +303,7 @@ def DrawLogo():
 def Commit():
   """ Git commit and push to Gerrit """
 
-  # commit-msg file is necessary to automatically insert Change-Id.
+  # commit-msg _fd is necessary to automatically insert Change-Id.
   os.chdir(HOOK_DIR)
   msg_fd = open('commit-msg', 'wt')
   os.chmod('commit-msg', 0755)
@@ -314,11 +313,11 @@ def Commit():
   os.chdir(HYBRIDTV_DIR)
   msg = COMMIT_MSG.replace('{submission}', GetSubmisison.get)
 
-  # Signed-off-by: filed is necessary. to automatically make Change-Id.
+  # Signed-off-by: _fdd is necessary. to automatically make Change-Id.
   msg = msg.replace('{signed-off-by}', 'Signed-off-by: ' + ACCOUNT_WHOAMI + ' <' + ACCOUNT_WHOAMI + '@lge.com>')
-  file = open('COMMIT_MSG', 'w+')
-  file.write(msg)
-  file.close()
+  _fd = open('COMMIT_MSG', 'w+')
+  _fd.write(msg)
+  _fd.close()
   Popen(['git', 'commit', '-aF', 'COMMIT_MSG'], stdout = PIPE).communicate()
   Popen(['git', 'push', 'origin', 'HEAD:refs/for/@beehive4tv'], stdout = PIPE).communicate()
 
