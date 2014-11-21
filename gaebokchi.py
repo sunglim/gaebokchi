@@ -214,13 +214,6 @@ def GetSubmisison():
 
 GetSubmisison.get = ''
 
-def DownloadCheckSum(serverip):
-  os.chdir(HYBRIDTV_DIR)
-  submission = GetSubmisison.get
-  Popen(['wget', 'ftp://%s/lg1311/%s/hybridtv*%s-checksum.txt' % (serverip, ACCOUNT_WHOAMI, submission)], stdout = PIPE).communicate()
-  Popen(['wget', 'ftp://%s/lg1210/%s/hybridtv*%s-checksum.txt' % (serverip, ACCOUNT_WHOAMI, submission)], stdout = PIPE).communicate()
-  Popen(['wget', 'ftp://%s/lm15u/%s/hybridtv*%s-checksum.txt' % (serverip, ACCOUNT_WHOAMI, submission)], stdout = PIPE).communicate()
-
 def getTvbinUrlFromBb(bb_file, submission):
   url = 'http://tvbin.lge.com:8080/p/hybridtv-{type}/starfish-beehive/{chip}/1.0.0-{submission}/tc1/detail/'
   # unhappy this code. find better way
@@ -303,8 +296,8 @@ def Patch():
 def DrawLogo():
   """ Draw Logo and load env """
   print "-----------------------------------------------"
-  print " Gae Bok Chi, with a focusing 2n automation.\n"
-  print "                         v0.0.1   < ')+++<"
+  print " Gae Bok Chi, with a focusing on automation.\n"
+  print "                         v0.0.2   < ')+++<"
   print "-----------------------------------------------"
   GetSubmisison()
 
