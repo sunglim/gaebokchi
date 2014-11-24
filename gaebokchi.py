@@ -9,7 +9,7 @@ import urllib2
 
 ACCOUNT_WHOAMI = getpass.getuser()
 
-CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(___fd__)))
+CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 STARFISH_TOP_DIR = os.path.join(CURRENT_DIR, 'ccc_magic')
 HOOK_DIR = os.path.join(STARFISH_TOP_DIR, 'meta-lg-webos', '.git', 'hooks')
 HYBRIDTV_DIR = os.path.join(STARFISH_TOP_DIR, 'meta-lg-webos', 'meta-starfish',
@@ -205,9 +205,9 @@ def CloneStarfish(branch_name):
   Popen(['./mcf', '-b', '16', '-p', '16', 'm14tv', '--premirror=_fd:///starfish/downloads'], stdout = PIPE).communicate()
 
 def GetSubmisison():
-  html = urllib2.urlopen("http://webos.lge.com/binary/starfish-beehive/lm15u/official/hybridtv-dvb/").read()
-  START_TAG = '<a href="hybridtv-dvb-lm15u-tc1-1.0.0-'
-  start = html.rfind('<a href="hybridtv-dvb-lm15u-tc1-1.0.0-') + len(START_TAG)
+  html = urllib2.urlopen("http://webos.lge.com/binary/starfish-beehive/m14tv/official/hybridtv-dvb/?C=M;O=A").read()
+  START_TAG = '<a href="hybridtv-dvb-m14tv-tc1-1.0.0-'
+  start = html.rfind('<a href="hybridtv-dvb-m14tv-tc1-1.0.0-') + len(START_TAG)
   end = html.find('.tar.bz2', start)
   GetSubmisison.get = html[start:end]
 
@@ -299,6 +299,7 @@ def DrawLogo():
   print "                         v0.0.2   < ')+++<"
   print "-----------------------------------------------"
   GetSubmisison()
+  print "Submission : " + GetSubmisison.get
 
 def Commit():
   """ Git commit and push to Gerrit """
