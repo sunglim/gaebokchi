@@ -320,12 +320,12 @@ def Commit():
   _fd.write(msg)
   _fd.close()
   Popen(['git', 'commit', '-aF', 'COMMIT_MSG'], stdout = PIPE).communicate()
-  Popen(['git', 'push', 'origin', 'HEAD:refs/for/@beehive4tv'], stdout = PIPE).communicate()
+  Popen(['git', 'push', 'origin', 'HEAD:refs/for/@badlands'], stdout = PIPE).communicate()
 
 def main():
   DrawLogo()
   RemoveStarfishDir()
-  CloneStarfish('@beehive4tv')
+  CloneStarfish('@badlands')
   Patch()
   Commit()
 
